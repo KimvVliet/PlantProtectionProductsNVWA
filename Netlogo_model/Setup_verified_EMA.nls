@@ -1,0 +1,537 @@
+To change_int_to_boolean_EMA
+ 
+ ; this function is to be able to perform sobol analyses with a boolean variable. 
+ ; does not change anything to the model.S
+  carefully [
+    ifelse round inspect_end_users_EMA = 0 [
+      set inspect_end_users? false
+    ][
+      set inspect_end_users? true
+  ]][
+  set inspect_end_users? inspect_end_users_EMA]
+  
+  carefully [
+    ifelse round inspect_end_user_only_traders_EMA = 0  [
+      set inspect_end_user_only_traders? false
+    ][
+      set inspect_end_user_only_traders? true
+  ]][
+  set inspect_end_user_only_traders? inspect_end_user_only_traders_EMA]
+  
+  carefully [ 
+    ifelse inspect_trader_to_trader_only_traders_EMA = false or round inspect_trader_to_trader_only_traders_EMA = 0  [
+      set inspect_trader_to_trader_only_traders? false
+    ][
+      set inspect_trader_to_trader_only_traders? true
+    ]
+  ][
+  set inspect_trader_to_trader_only_traders? inspect_trader_to_trader_only_traders_EMA
+  ]
+  
+  
+end
+
+To set_seed
+  ; set a user-entered fixed-seed if desired
+  
+  ifelse fixed-seed? [
+    set random_seed_value random_seed_value
+    random-seed random_seed_value
+  ][ 
+    let new_seed new-seed
+    set random_seed_value new_seed
+    random-seed new-seed
+  ]
+end
+
+To create_crop_list
+  
+  ; define the crops and diseases that are going to be used in this simulation
+  let possible_crops ["potato" "apple" "pear" "rose" "lilly" "tomato" "cucumber" "strawberry" "pumpkin" "parsley"]
+  let possible_diseases ["fungus" "weed" "bacterium" "virus"]
+  
+  set crop_list sublist possible_crops 0 nr_of_types_of_crops
+  set disease_list sublist possible_diseases 0 nr_of_types_of_diseases
+  
+end
+
+To create_plots_of_land
+  
+  ; count how many squares are needed
+  let copy_of_crop_list crop_list
+  let nr_of_crops length crop_list
+  let plots_vertical ceiling sqrt nr_of_crops
+  let plots_horizontal ceiling (nr_of_crops / plots_vertical)
+  let color_counter 61
+  
+  ; check if the number of squares to be created is a square number. If not, we need to vary the last row.
+  let not_square_number? false
+  if ceiling sqrt nr_of_crops - floor sqrt nr_of_crops > 0 [
+    set not_square_number? true
+  ]
+  
+  let vertical_plots_counter 0
+  let horizontal_plots_counter 0
+  
+  ; create the squares including the crops on them
+  ; create one row of squares at a time
+  repeat plots_vertical [
+    repeat plots_horizontal [
+      
+      ; divide the crop types randomly over the map
+      let current_crop one-of copy_of_crop_list
+      
+      ; create one square, with a unique colour and crop type
+      ask patches with [pycor >= max-pycor * (vertical_plots_counter / plots_vertical) and pycor <= max-pycor * ((vertical_plots_counter + 1) / plots_vertical)  and pxcor >= max-pxcor * (horizontal_plots_counter / plots_horizontal)  and pxcor <= max-pxcor * ((horizontal_plots_counter + 1) / plots_horizontal)] [ 
+        set pcolor color_counter
+        set crop_type_patch current_crop ]
+      
+      ; update relevant counters for the creation of the next square in the row
+      set horizontal_plots_counter horizontal_plots_counter + 1
+      set color_counter color_counter + 1
+      set copy_of_crop_list remove current_crop copy_of_crop_list
+    ]
+    
+    ; after a row of squares is finished, update relevant counters
+    set vertical_plots_counter vertical_plots_counter + 1
+    set horizontal_plots_counter 0
+    
+    ; if we make the last row and the number of crops is not a square, ensure that the last row has the appropriate number of squares
+    if vertical_plots_counter + 1 = plots_vertical and not_square_number? [
+      if nr_of_crops mod plots_horizontal > 0 [
+        set plots_horizontal nr_of_crops mod plots_horizontal
+      ]
+    ]
+  ]
+  
+  ; if 10 squares are created and one therefore is black, set it back to green
+  ask patches [ if pcolor = 70 [ set pcolor 55]]
+  
+end
+
+To create_visualisation
+  
+  ; create columns for every trader and fill them with squares that show the buying method of the agents
+  
+  let list_of_square_for_agent ["end_users" "end_users" "traders" "traders" "traders"]
+  let list_of_type_of_buying_method ["internet" "trader" "permit_holder" "trader" "internet"]
+  let nr_of_rows length list_of_square_for_agent
+  let color_list [red orange green orange red]
+  let counter 0
+  
+  ; first create the rows
+  ask patches [ 
+    set pcolor black
+    set column_number "none" ]
+  repeat nr_of_rows [
+    ask patches with [pycor < max-pycor / nr_of_rows * (counter + 1) and pcolor = black] [
+      
+      set square_for_agent item counter list_of_square_for_agent
+      set type_of_buying_method item counter list_of_type_of_buying_method
+      set pcolor  item counter color_list  
+    ]
+    set counter counter + 1    
+  ]
+  
+  ; then create the columns
+  set counter 0
+  
+  repeat (nr_of_traders) [
+    if counter != (nr_of_traders - 1) [ask patches with [pxcor = ceiling (max-pxcor / nr_of_traders * (counter + 1))] [
+      set pcolor black
+      ]
+    ]
+    ask patches with [pxcor < ceiling (max-pxcor / nr_of_traders * (counter + 1)) and column_number = "none"][
+      set column_number counter
+    ]
+    set counter counter + 1
+  ]
+  
+end
+
+To create_agents
+  
+  create_end_users
+  create_traders
+  create_inspectors
+  
+end
+
+To create_end_users
+  
+  ; create end-users, put them randomly on the map and give them a crop type
+  create-end_users nr_of_end_users [
+    
+    set size 2
+    set shape "end-user"
+    set color green
+    move-to one-of patches
+    
+    ; not all end-users in one area have the same crop type
+    set crop_type_end_user [crop_type_patch] of patch-here
+    
+    let chance_of_different_crop 10
+    if random 10 < chance_of_different_crop [ set crop_type_end_user one-of crop_list ]
+    
+    ; end-users start without a disease and without experience with PPPs
+    set disease_crop_end_user "none"
+    set months_with_disease 0
+    set inspected_this_tick? false
+    set my_stock (turtle-set nobody)
+    
+    ; end-users start with a high trust in buying PPPs from traders
+    set trust_in_via_traders 75 + random 25
+    set buying_method "trader"
+    
+    ; end-users start with a random trust in buying PPPs from the internet
+    set trust_in_via_internet random 100
+    
+    ; end-users have a random propensity to violate
+    set propensity_to_violate random 100
+    
+    ; a user-defined number of end-users will never buy from the internet
+    if propensity_to_violate < %_always_comply_end_users [ set trust_in_via_internet 0]
+  ]
+  
+  ask end_users [
+    let neighbor_distance 5
+    set my_neighbors end_users in-radius neighbor_distance
+  ]
+  
+end
+
+To create_traders
+  
+  ; create traders and put them randomly on the map
+  create-traders nr_of_traders [
+    
+    set size 3
+    set shape "house"
+    set color blue
+    
+    ; create two types of traders: 
+    ; traders that sell to end-users only
+    ; or traders that sell to other traders only
+    
+    ifelse random 100 < %_traders_end_user_only [
+      set end_user_only? true
+    ][set end_user_only? false]
+    
+    ; start at 0 for relevant variables   
+    set requested_items_clients (list (list "year 0") (list "year 1")  (list "year 2"))
+    set profit_this_year 0
+    set order_products? false
+    set inspected_this_tick? false
+    
+    ; set online offer false for now, might be changed in create_online_offer_traders
+    set online_offer? false
+    
+    ; set a random, fairly high trust in buying PPPs from traders and permit_holders
+    set trust_in_via_traders random 50 + 50
+    set trust_in_via_PH random 50 + 50
+    
+    ; traders have a random propensity to violate
+    set propensity_to_violate random 100
+    
+    ; a user-defined number of traders will never buy from the internet
+    ifelse propensity_to_violate < %_always_comply_traders [ set trust_in_via_internet 0][
+      set trust_in_via_internet random 50 + 50]
+    
+    ; start with a legal strategy
+    set buying_method one-of list "trader" "permit_holder"
+    
+    ; let traders move to their respective column and row
+    ifelse progression_visualisation? [
+      set column_number_trader who mod nr_of_traders
+      move-to one-of patches with [column_number = [column_number_trader] of myself and square_for_agent = (word [breed] of myself) and type_of_buying_method = [buying_method] of myself and pcolor != black ]      
+    ][
+      move-to one-of patches]
+  ]
+  
+  ; ensure that at least one trader that sells to end-users and one trader that sells to traders is present in every simulation
+  if not any? traders with [end_user_only?] [ ask one-of traders [ set end_user_only? true]]
+  if not any? traders with [end_user_only? = false] [ ask one-of traders [ set end_user_only? false]]
+  
+  ask traders [ 
+    
+    ; ensure that with a small number of traders, no more traders can be chosen than the number of traders - 1 (two traders = only one trader to buy from per trader)
+    let nr_of_traders_to_buy_from  min (list (1 + random max_traders_to_buy_from) ((count other traders with [end_user_only? = false])) )
+    set my_traders turtle-set n-of nr_of_traders_to_buy_from other traders with [end_user_only? = false]    
+    
+    if progression_visualisation? [
+      if my_traders != 0 and buying_method = "trader" [ create-links-to turtle-set my_traders ]
+      ask links [ set color black ]
+    ]
+  ]
+  
+  ask end_users [
+    set my_trader min-one-of traders with [end_user_only?] [distance myself]
+    
+    ; let end-users move to the column of their trader and the row that corresponds to their strategy
+    if progression_visualisation? [
+      move-to one-of patches with [column_number = [column_number_trader] of [my_trader] of myself and square_for_agent = (word [breed] of myself) and type_of_buying_method = [buying_method] of myself and pcolor != black ]
+    ]
+  ]
+  
+end
+
+To create_inspectors
+  
+  create-inspectors nr_of_inspectors [
+    set size 3
+    set shape "x"
+    set color black
+    set assigned_to "none"
+  ]
+  
+end
+
+To create_authorisations
+  
+  create_mother_authorisations
+  create_bulk_authorisations
+  
+end
+
+To create_mother_authorisations
+  
+  ; determine the number of mother approvals that will be created based on the user-specified number of crop-disease combinations that are covered by mother approvals
+  let crop_disease_combinations length disease_list * length crop_list
+  let nr_of_mother_approvals ceiling (%_coverage_of_disease_crop_combinations_legal_products *  crop_disease_combinations / 100 )
+  
+  ; create a table with the crops as keys and all possible diseases for this crop as a list 
+  ; this is done to ensure that mother approvals are evenly spread over the crops and diseases
+  
+  let dict_of_possible_PPP_combinations table:make
+  
+  foreach crop_list [ crop -> 
+    table:put dict_of_possible_PPP_combinations crop disease_list  
+  ]
+  
+  ; create mother authorisations
+  create-PPPs nr_of_mother_approvals [
+    
+    ; randomly choose a crop (dict key) and a disease for which no mother authorisation exists yet
+    set crop_type_PPP one-of table:keys dict_of_possible_PPP_combinations
+    set disease_PPP one-of table:get dict_of_possible_PPP_combinations crop_type_PPP
+    
+    ; remove this diseases from the dictionary
+    ; if no diseases remain for a crop, no new mother authorisations have to be made for this crop and the crop is removed from the dictionary
+    let list_of_remaining_diseases remove disease_PPP table:get dict_of_possible_PPP_combinations crop_type_PPP    
+    ifelse list_of_remaining_diseases = [] [
+      table:remove dict_of_possible_PPP_combinations crop_type_PPP
+    ][
+      table:put dict_of_possible_PPP_combinations crop_type_PPP list_of_remaining_diseases  
+    ]
+    
+    ; set other variables
+    ; mother authorisations are always very effective and relatively expensive
+    set mother? true
+    let maximum_effectiveness 100
+    let minimum_effectiveness_mother 95
+    set effectiveness minimum_effectiveness_mother + random (maximum_effectiveness - minimum_effectiveness_mother)
+    set sale_price_end_user sale_price_end_user_mother
+    
+    ; set variables by which a mother authorisation can be recognized
+    set legal_in_EU? true
+    set original_product? true
+    set similarity_to_original_product 100
+  ]
+  
+end
+
+To create_bulk_authorisations
+  
+  let %_mother_in_bulk 90
+  let nr_of_mother_authorisations_to_be_copied_for_bulk ceiling (count PPPs with [mother?] * %_mother_in_bulk / 100)
+  
+  ; ask 90% of mother authorisations to create a bulk product based on itself
+  ask n-of nr_of_mother_authorisations_to_be_copied_for_bulk PPPs with [mother?] [
+    
+    ; create 1 or more bulk products based on this PPP
+    ; only the mother authorisation status, sale price and the effectiveness differ
+    let maximum_bulk_products 3
+    hatch 1 + random maximum_bulk_products [
+      set mother? false
+      let maximum_effectiveness 100
+      let minimum_effectiveness_bulk 90
+      set effectiveness min list [effectiveness] of myself (minimum_effectiveness_bulk + random (maximum_effectiveness - minimum_effectiveness_bulk))
+      set sale_price_end_user sale_price_end_user_bulk_illegal_EU
+    ]
+  ]    
+  
+end
+
+To set_up_initial_stock_traders
+  
+  ; let traders start with 5 types of PPPs in stock
+  ask traders [
+    
+    ; to ensure that traders do not hold a stock of the same PPP twice, we create a copy of all PPPs
+    let copy_of_PPPs PPPs
+    
+    let initial_stock 5
+    repeat min list initial_stock count PPPs
+    [
+      hatch-orders 1 [    
+        
+        ; remove the current PPP from the available PPPs to put in stock
+        let PPP_to_add_to_stock one-of copy_of_PPPs
+        ask PPP_to_add_to_stock [set copy_of_PPPs other copy_of_PPPs]     
+        
+        ; set the order variables
+        set shape "PPP"
+        set PPP_in_order PPP_to_add_to_stock
+        set number_of_PPPs 20
+        set owner myself
+        set previous_owners []
+        set dead_counter "none"
+        set selling_method "permit_holder"
+        set online? false 
+        
+        ; color the order according to the legal status of the product
+        if progression_visualisation? [
+          set_color_according_to_legal_status PPP_in_order
+        ]
+      ]      
+    ]
+    
+    set my_stock turtle-set orders with [owner = myself]
+  ]
+  
+  
+  
+end
+
+To create_online_offer
+  
+  create_online_offer_traders
+  create_NOPs
+  create_illegal_EU
+  create_orders_online
+  
+end
+
+To create_online_offer_traders
+  
+  ; a percentage of Dutch traders offers its PPPs online
+  
+  ; first determine how many traders should offer their ware online
+  let %_traders_with_online_offer 20
+  ask n-of ceiling (count traders * %_traders_with_online_offer / 100 ) traders [
+    set online_offer? true 
+    
+    ; then ask the orders of these traders to offer themselves online
+    ask orders with [owner = myself] [
+      set online? true
+    ]
+  ]
+  
+end
+
+To create_NOPs
+  
+  ; create NOP products for online sale
+  ; NOPs are created based on a legal PPP
+  
+  ; determine how many NOP PPPs to create
+  let %_all_EU_PPPs_available_as_NOP 60
+  let all_EU_PPPs PPPs
+  
+  repeat ceiling (count PPPs * %_all_EU_PPPs_available_as_NOP / 100) [
+    
+    ; choose a legal PPP
+    let PPP_to_copy one-of all_EU_PPPs
+    ask PPP_to_copy [
+      
+      ; remove current PPP from PPPs to be copied
+      set all_EU_PPPs other all_EU_PPPs
+      
+      ; hatch NOP product that is similar to the original product, but less effective.
+      hatch 1 [  
+        let %_min_NOP_effectiveness 10
+        let %_max_NOP_effectiveness 90
+        set effectiveness [effectiveness] of myself - [effectiveness] of myself * (%_min_NOP_effectiveness + random (%_max_NOP_effectiveness - %_min_NOP_effectiveness)) / 100
+        set similarity_to_original_product min list (random 30 + random 100) 100
+        ; set other NOP variable
+        set original_product? false
+      ]
+    ]     
+  ]
+  
+end
+
+To create_illegal_EU
+  
+  ;create PPPs that are illegal in the EU.
+  
+  ; determine how many illegal PPPs to create based on the number of legal PPPs in the EU
+  let ratio_legal_vs_illegal_EU 0.6
+  
+  repeat ceiling (count PPPs with [original_product?] * ratio_legal_vs_illegal_EU) [
+    
+    ; create a PPP for a random crop and disease
+    create-PPPs 1 [
+      set crop_type_PPP one-of crop_list
+      set disease_PPP one-of disease_list
+      
+      ; PPPs that are illegal in the EU have a high effectiveness and a price similar to that of bulk products
+      let %_min_illegal_EU_effectiveness 70
+      let %_max_illegal_EU_effectiveness 100
+      set effectiveness %_min_illegal_EU_effectiveness + random (%_max_illegal_EU_effectiveness  - %_min_illegal_EU_effectiveness)
+      set sale_price_end_user sale_price_end_user_bulk_illegal_EU
+      
+      ; set other illegal in the EU variables
+      set mother? false
+      set legal_in_EU? false
+      set original_product? true  
+      set similarity_to_original_product 100      
+    ]
+  ]
+  
+end
+
+To create_orders_online
+  
+  ; all NOP products and products that are illegal in the EU are initially offered via the internet
+  ; here, orders are created from which agents can buy the products
+  ask PPPs with [legal_in_EU? = false or original_product? = false] [
+    hatch-orders 1 [
+      
+      ;create online offer
+      set PPP_in_order myself
+      set owner "internet"
+      set online? true
+      
+      ; online offer is in endless supply
+      set number_of_PPPs 100000
+      
+      ; set other order variables
+      set shape "PPP"
+      set previous_owners []
+      set dead_counter "none"
+      set selling_method "internet"
+    ]
+  ]
+  
+  set online_PPP_set_traders turtle-set PPPs with [legal_in_EU? = false or original_product? = false]
+  set online_order_set_end_users turtle-set orders with [online?]
+  set PH_PPP_set_traders turtle-set PPPs with [legal_in_EU? and original_product?]
+end
+
+To create_inspection_list
+  
+  ; create a list with user-defined inspection targets
+  
+  set inspection_list []
+  if inspect_end_users? [set inspection_list lput end_users inspection_list]
+  if inspect_end_user_only_traders? [set inspection_list lput traders with [end_user_only?] inspection_list]
+  if inspect_trader_to_trader_only_traders? [set inspection_list lput traders with [end_user_only? = false] inspection_list]
+  
+  ; if there are inspectors available in the simulation and no inspection targets have been selected, give an error
+  if inspection_list = [] and Nr_of_inspectors > 0 [
+    error "There are inspectors, but no inspection targets were selected."
+  ]
+  
+end
+
