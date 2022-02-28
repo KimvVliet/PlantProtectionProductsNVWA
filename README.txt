@@ -1,6 +1,6 @@
 PlantProtectionProductsNVWA
 
-This github repository present the code and agent-based model used to understand the plant protection products chain. The main folder contains the Jupyter notebooks that were used for the experiments with the EMA workbench and for the visualisations. The files are numbered according to the logical order of performing them (0 - 3). The corresponding data is in the Results folder, however, the data for the Sobol analysis and first analysis via Latin Hypercube sampling are missing as these files were too large to be uploaded on GitHub. To get these files, please reach out. 
+This github repository present the code and agent-based model used to understand the plant protection products chain. The model was created for the MSc thesis "Applying agent-based modelling as a risk analysis tool for enforcement: a case study of the regulation of the Dutch plant protection products chain". The main folder contains the Jupyter notebooks that were used for the experiments with the EMA workbench and for the visualisations. The files are numbered according to the logical order of performing them (0 - 3). The corresponding data is in the Results folder, however, the data for the Sobol analysis and first analysis via Latin Hypercube sampling are missing as these files were too large to be uploaded on GitHub. To get these files, please reach out. 
 
 Netlogo Model
 
