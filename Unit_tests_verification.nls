@@ -1,0 +1,2474 @@
+To unit_test
+  clear-all
+  reset-ticks
+  
+  if progression_visualisation? [
+    set progression_visualisation? false
+  ]
+  
+  unit_test_1_set_seed
+  unit_test_2_create_crop_list
+  unit_test_3_create_end_users
+  unit_test_4_create_traders
+  unit_test_5_create_inspectors
+  unit_test_6_create_mother_authorisations
+  unit_test_7_create_bulk_authorisations
+  unit_test_8_set_up_initial_stock_traders
+  unit_test_9_create_online_offer_traders
+  unit_test_10_create_NOPs
+  unit_test_11_create_illegal_EU
+  unit_test_12_create_orders_online
+  unit_test_13_yearly_check_traders
+  unit_test_14_adjust_trust
+  unit_test_15_check_profit
+  unit_test_16_remove_request_data 
+  unit_test_17_plants_get_diseases
+  unit_test_18_end_users_set_strategy
+  unit_test_19_trader_makes_money
+  unit_test_20_register_KPI
+  unit_test_21_change_trust_end_user
+  unit_test_22_end_user_cure
+  unit_test_23_trade_product
+  unit_test_24_end_user_no_cure
+  unit_test_25_use_product
+  unit_test_26_traders_set_stocking_strategy
+  unit_test_27_decide_what_to_stock
+  unit_test_28_send_package
+  unit_test_29_order_product_PH_internet
+  unit_test_30_change_trust_based_on_selling_method
+  unit_test_31_order_product_traders
+  unit_test_32_end_users_with_diseases_ask_traders
+  unit_test_33_end_users_with_diseases_search_internet
+  unit_test_34_create_inspection_list
+  unit_test_35_catch_and_fine
+  unit_test_36_to_inspect
+  unit_test_37_inspect_random
+  
+  reset-ticks
+  ask turtles [die]
+end
+
+To unit_test_1_set_seed
+  
+  ; Unit test 1a - test if the fixed-seed? option fixes the seed.
+  
+  set random_seed_value 100
+  set fixed-seed? true
+  set_seed
+  if random_seed_value != 100 [
+    error "Unit test 1a - random seed value changed whilst it shouldn't have."
+  ]
+  
+  ;---
+  
+  ; Unit test 1b - test if choosing the fixed-seed? option at false creates a random seed.
+  
+  set fixed-seed? false
+  set_seed
+  if random_seed_value = 100 [
+    error "Unit test 1b - random seed value wasn't random."
+  ]
+  
+  ;---
+  
+end
+
+To unit_test_2_create_crop_list
+  
+  ; Unit test 2a - test if lengths of crop_list and disease_list correspond to user-input 
+  set nr_of_types_of_crops 5
+  set nr_of_types_of_diseases 2
+  
+  create_crop_list
+  
+  if crop_list != ["potato" "apple" "pear" "rose" "lilly"] [
+    error "Unit test 2a - crop_list does not have the appropriate length or content."
+  ]
+  
+  if disease_list != ["fungus" "weed"] [
+    error "Unit test 2a - disease_list does not have the appropriate length or content."
+  ]
+  
+  ;---
+  
+end
+
+To unit_test_3_create_end_users
+  
+  ; Unit test 3a - test if end-users have been set up correctly.
+  
+  set nr_of_end_users 10
+  set %_always_comply_end_users 80
+  create_end_users
+  
+  ask end_users [
+    if crop_type_end_user = 0 [
+      error "Unit test 3a - end-user does not have a crop type"
+    ]
+    
+    if disease_crop_end_user != "none" [
+      error "Unit test 3a - end-user has a disease at setup"
+    ]
+    
+    if trust_in_via_traders < 0 or trust_in_via_traders > 100 [
+      error "Unit test 3a - end-user trust_in_via_traders out of boundary"
+    ]
+    
+    if propensity_to_violate  < 0 or propensity_to_violate  > 100 [
+      error "Unit test 3a - end-user propensity_to_violate  out of boundary"
+    ]
+    
+    ifelse propensity_to_violate < %_always_comply_end_users [
+      if trust_in_via_internet != 0 [
+        error "Unit test 3a - end-user trust_in_via_internet did not get set at 0 with a propensity to violate below threshold"
+      ]
+    ][
+      
+      if trust_in_via_internet < 0 or trust_in_via_internet > 100 [
+        error "Unit test 3a - end-user trust_in_via_internet out of boundary"
+      ]
+    ]
+    
+    if buying_method != "trader" [
+      error "Unit test 3a - end-user strategy is not trader at setup"
+    ] 
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_4_create_traders
+  
+  ; Unit test 4a - test if traders have been set up correctly.
+  
+  set nr_of_traders 2
+  set %_always_comply_traders 80
+  
+  create_traders
+  
+  if count traders with [end_user_only?] != 1 [
+    error "Unit test 4a - wrong number of end-user-only traders created"
+  ]
+  
+  if count traders with [end_user_only? = false] != 1 [
+    error "Unit test 4a - wrong number of trader-to-trader-only traders created"
+  ]
+  
+  if count traders with [count my_traders = 0] != 1 [
+    error "Unit test 4a - not just one trader has no other traders."
+  ]
+  
+  if count traders with [count my_traders = 1] != 1 [
+    error "Unit test 4a - not just one trader has only one other trader."
+  ]
+  
+  ask traders [
+    if trust_in_via_traders < 50 or trust_in_via_traders > 100 or trust_in_via_PH < 50 or trust_in_via_PH > 100 [
+      error "Unit test 4a - trust in traders or PH not set up correctly" 
+    ]
+    
+    ifelse propensity_to_violate < %_always_comply_traders [
+      if trust_in_via_internet > 0 [
+        error "Unit test 4a - trader trust_in_via_internet not set up correctly."
+      ]
+    ][
+      if trust_in_via_internet < 0 or trust_in_via_internet > 100 [
+        error "Unit test 4a - trader trust_in_via_internet out of boundary"
+      ]
+    ] 
+  ]
+  
+  ;---
+  
+  ; Unit test 4b - test if end-users find traders as my_trader.
+  
+  ask turtles [die]
+  
+  create-end_users 1 [
+    set my_trader 0
+  ]
+  
+  create_traders 
+  
+  ask end_users [
+    if my_trader != one-of traders with [end_user_only?] [
+      error "Unit test 4b - end-user did not get paired up with trader correctly."
+    ]
+  ]
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_5_create_inspectors
+  
+  ; Unit test 5a - test if end-users have been set up correctly.
+  
+  set nr_of_inspectors 5
+  
+  create_inspectors
+  
+  if not any? inspectors [
+    error "Unit test 5a - no inspectors were created."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+end
+
+To unit_test_6_create_mother_authorisations
+  
+  ; Unit test 6a - test if the right number of mother authorisations are created.
+  
+  set crop_list ["apple" "lilly"]
+  set disease_list ["bacterium" "fungus"]
+  
+  set %_coverage_of_disease_crop_combinations_legal_products 10
+  
+  create_mother_authorisations
+  
+  if count PPPs != 1 [
+    error "Unit test 6a - wrong number of mother approvals. Should have been only 1."
+  ]
+  
+  ask turtles [die]
+  
+  set %_coverage_of_disease_crop_combinations_legal_products 45
+  
+  create_mother_authorisations
+  
+  if count PPPs != 2 [
+    error "Unit test 6a - wrong number of mother approvals. Should have been only 2."
+  ]
+  
+  ask turtles [die]
+  
+  set %_coverage_of_disease_crop_combinations_legal_products 100
+  
+  create_mother_authorisations
+  
+  if count PPPs != 4 [
+    error "Unit test 6a - wrong number of mother approvals. Should have been only 4."
+  ]
+  
+  ;---
+  
+  ; Unit test 6b - test if the crop_type and disease_type of the created PPPs are correct.
+  
+  if sort [crop_type_PPP] of PPPs != sort ["apple" "apple" "lilly" "lilly"] [
+    error  "Unit test 6b - crop type of PPPs does not match supposed crop types."
+  ]
+  
+  if sort [disease_PPP] of PPPs != sort ["bacterium" "fungus" "bacterium" "fungus"] [
+    error  "Unit test 6b - disease type of PPPs does not match supposed crop types."
+  ]
+  
+  if count PPPs with [crop_type_PPP = "lilly" and disease_PPP = "bacterium"] != 1 [
+    error "Unit test 6b - wrong number of PPPs per type of crop & disease combination created, should have been 1."
+  ]
+  
+  if count PPPs with [crop_type_PPP = "lilly" and disease_PPP = "fungus"] != 1 [
+    error "Unit test 6b - wrong number of PPPs per type of crop & disease combination created, should have been 1."
+  ]
+  
+  if count PPPs with [crop_type_PPP = "apple" and disease_PPP = "bacterium"] != 1 [
+    error "Unit test 6b - wrong number of PPPs per type of crop & disease combination created, should have been 1."
+  ]
+  
+  if count PPPs with [crop_type_PPP = "apple" and disease_PPP = "fungus"] != 1 [
+    error "Unit test 6b - wrong number of PPPs per type of crop & disease combination created, should have been 1."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_7_create_bulk_authorisations
+  
+  ; Unit test 7a - test if a bulk product is created.
+  create-PPPs 1 [
+    set crop_type_PPP "apple"
+    set disease_PPP "fungus"
+    set mother? true
+    set effectiveness 95
+    set sale_price_end_user 100
+    set legal_in_EU? true
+  ]
+  
+  set sale_price_end_user_bulk_illegal_EU 60
+  create_bulk_authorisations
+  
+  if not any? PPPs with [mother? = false] [
+    error "Unit test 7a - no bulk products created."
+  ]
+  
+  ;---
+  
+  ; Unit test 7b - test if the properties of the created bulk product are correct.
+  
+  ask PPPs with [mother? = false] [
+    
+    if crop_type_PPP != "apple" or disease_PPP != "fungus" [
+      error "Unit test 7b - crop type or disease of bulk product have not been copied correctly."
+    ]
+    
+    if effectiveness > [effectiveness] of one-of PPPs with [mother?][
+      error "Unit test 7b - effectiveness of bulk product is higher than that of mother authorisation."
+    ]
+    
+    if sale_price_end_user != 60 [
+      error "Unit test 7b - sale price of bulk product is different from 60."
+    ]
+    
+    if legal_in_EU? = false [
+      error "Unit test 7b - bulk product is illegal in EU."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_8_set_up_initial_stock_traders
+  
+  ; Unit test 8a - test if any orders are created.
+  
+  create-PPPs 1 [
+    set crop_type_PPP "apple"
+    set disease_PPP "fungus"
+    set mother? true
+    set effectiveness 95
+    set sale_price_end_user 100
+    set legal_in_EU? true
+  ]
+  
+  create-traders 1 [
+    
+  ]
+  
+  set_up_initial_stock_traders
+  
+  if not any? orders [
+    error "Unit test 8a - no orders were created."
+  ]
+  
+  ;---
+  
+  ; Unit test 8b - test if the properties of the order are correct.
+  
+  ask orders [
+    
+    if [crop_type_PPP] of PPP_in_order != "apple" or [disease_PPP] of PPP_in_order != "fungus" [
+      error "Unit test 8b - PPP in order is not correct."
+    ]
+    
+    if owner != one-of traders [
+      error "Unit test 8b - owner of order is not correct."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 8c - test if 5 orders are created when there are plenty of PPPs.
+  
+  ask orders [die]
+  
+  create-PPPs 10 [
+    set crop_type_PPP "apple"
+    set disease_PPP "fungus"
+    set mother? true
+    set effectiveness 95
+    set sale_price_end_user 100
+    set legal_in_EU? true
+  ]
+  
+  set_up_initial_stock_traders
+  
+  if count orders != 5 [
+    error "Unit test 8c - wrong number of orders created."
+  ]
+  
+  ask orders [
+    
+    if any? other orders with [PPP_in_order = [PPP_in_order] of myself] [
+      error "Unit test 8c - orders do not all contain unique PPPs."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_9_create_online_offer_traders
+  
+  ; Unit test 9a - test if only one order is set to online.
+  
+  create-traders 1 [    
+  ]
+  
+  create-PPPs 1 [
+    set crop_type_PPP "apple"
+    set disease_PPP "fungus"
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set online? false
+    set owner one-of traders
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set online? false
+    set owner 0
+  ]
+  
+  create_online_offer_traders
+  
+  if count traders with [online_offer?] = 0 [
+    error "Unit test 9a - no traders offer their ware online."
+  ]
+  
+  if count orders with [online?] != 1 [
+    error "Unit test 9a - wrong number of orders was set to online."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_10_create_NOPs
+  
+  ; Unit test 10a - test if an NOP is created.
+  
+  create-PPPs 1 [
+    set crop_type_PPP "rose"
+    set disease_PPP "fungus"
+    set mother? true
+    set effectiveness 80
+    set sale_price_end_user 100
+    set legal_in_EU? true
+    set original_product? true
+    set similarity_to_original_product 100
+  ]
+  
+  create_NOPs
+  
+  if count PPPs != 2 [
+    error (word "Unit test 10a - Too many / too few NOPs were created.")
+  ]
+  
+  ;---
+  
+  ; Unit test 10b - test whether the NOP is the same as the original product except for the variables on which it should differ. 
+  
+  ask PPPs with [original_product?] [
+    let NOP_product one-of other PPPs
+    ask NOP_product [
+      
+      if [original_product?] of myself = original_product? [
+        error (word "Unit test 10b - The original_product? variable for the original and the NOP product = " original_product?)
+      ]
+      
+      if [effectiveness] of myself < effectiveness [
+        error (word "Unit test 10b - Effectiveness of original product is lower than NOP." )
+      ]
+      
+      if [similarity_to_original_product] of myself < similarity_to_original_product [
+        error "Unit test 10b - Similarity of NOP is higher than original similarity...?"
+      ]
+      
+      if [crop_type_PPP] of myself != crop_type_PPP or [disease_PPP] of myself != disease_PPP or [mother?] of myself != mother? or [legal_in_EU?] of myself != legal_in_EU? [
+        error (word "Unit test 10b - Original product and NOP product do not match on all matching variables.")
+      ]
+    ] 
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_11_create_illegal_EU
+  
+  ; Unit test 11a - test if an appropriate number of illegal PPPs are made.
+  
+  create-PPPs 20 [
+    set legal_in_EU? true
+    set original_product? true
+  ]
+  
+  create_illegal_EU
+  
+  if count PPPs with [legal_in_EU? = false] != 12 [
+    error "Unit test 11a - wrong number of illegal PPPs created."
+  ]
+  
+  ;---
+  
+  ; Unit test 11b - test if the illegal PPPs have correct variable values.
+  
+  ask PPPs with [legal_in_EU? = false ][
+    if mother? = true or original_product? = false or effectiveness < 70 or effectiveness > 100 [
+      error "Unit test 11b - variables values of PPPs illegal in the EU are incorrect."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+end
+
+To unit_test_12_create_orders_online
+  
+  ; Unit test 12 - test if an appropriate number of online orders is created.
+  
+  create-PPPs 1 [
+    set legal_in_EU? false
+    set original_product? true
+  ]
+  
+  create-PPPs 1 [
+    set legal_in_EU? true
+    set original_product? true
+  ]
+  
+  create-PPPs 1 [
+    set legal_in_EU? true
+    set original_product? false
+  ]
+  
+  create_orders_online
+  
+  if count orders != 2 [
+    error "Unit test 12a - wrong number of orders created. Should have been 2."
+  ]
+  
+  
+  ;---
+  
+  ; Unit test 12b - test if the online orders have the appropriate variable values.
+  
+  if count orders with [[legal_in_EU?] of PPP_in_order = false] != 1 or count orders with [[original_product?] of PPP_in_order = false] != 1[
+    error "Unit test 12b - PPPs in orders are incorrect."
+  ]
+  
+  if count orders with [online?] != 2 [
+    error "Unit test 12b - online orders not online."
+  ]
+  
+  ask turtles [die]
+end
+
+To unit_test_13_yearly_check_traders
+  
+  ; Unit test 13a - test if trader goes into yearly_check_traders procedure correctly.
+  create-traders 1 [
+    set profit_this_year 500
+    set requested_items_clients [["year 0"]["year 1"]["year 2"]]
+  ]
+  
+  set fixed_trust_period 0
+  reset-ticks
+  repeat 12 [
+    yearly_check_traders
+    tick
+  ]
+  
+  if count traders with [profit_this_year = 0] != 1 [
+    error "Unit test 13a - traders did not go into yearly_check_traders procedure."
+  ]
+  
+  ;---
+  
+  ;Unit test 13b - test if trader goes into yearly_check_traders procedure only once per year.
+  
+  ask traders [set profit_this_year 500]
+  
+  let into_procedure_counter 0
+  
+  repeat 12 [
+    yearly_check_traders
+    ask traders [ 
+      if profit_this_year = 0 [
+        set into_procedure_counter into_procedure_counter + 1
+        set profit_this_year 500 
+      ]            
+    ]
+    tick
+  ]
+  
+  if into_procedure_counter != 1 [
+    error "Unit test 13b - too many entries into yearly_check_traders procedure."
+  ]
+  
+  ;---
+  
+  ask turtles [ die ]
+  
+end
+
+To unit_test_14_adjust_trust
+  
+  ; Unit test 14a - test whether trust changing procedure changes trust correctly.
+  
+  create-traders 1 [
+    set trust_in_via_PH 50
+    set trust_in_via_internet 50
+    set trust_in_via_traders 50
+    set buying_method "permit_holder"
+  ]
+  
+  set fixed_trust_period 0
+  
+  ask traders [ adjust_trust -50 
+    
+    if trust_in_via_PH != 25 or trust_in_via_internet != 50 or trust_in_via_traders != 50 [
+      error "Unit test 14a - trust reduction permit_holder not correct."
+    ]
+    
+    set buying_method "trader"
+    adjust_trust 50 
+    
+    if trust_in_via_PH != 25 or trust_in_via_internet != 50 or trust_in_via_traders != 75 [
+      error "Unit test 14a - trust reduction trader not correct."
+    ]
+    
+    set buying_method "internet"
+    adjust_trust 10 
+    
+    if trust_in_via_PH != 25 or trust_in_via_internet != 55 or trust_in_via_traders != 75 [
+      error "Unit test 14a - trust reduction internet not correct."
+    ]
+    
+  ]
+  
+  ;---
+  
+  ; Unit test 14b - test if trust limits are not exceeded.
+  
+  ask traders [     
+    
+    set buying_method "internet"
+    adjust_trust 100 
+    
+    if trust_in_via_PH != 25 or trust_in_via_internet != 100 or trust_in_via_traders != 75 [
+      error "Unit test 14b - upper trust limit exceeded."
+    ]
+    
+    adjust_trust -1000
+    
+    if trust_in_via_PH != 25 or trust_in_via_internet != 0.0001 or trust_in_via_traders != 75 [
+      error "Unit test 14b - lower trust limit exceeded."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 14c - test if nothing happens when fixed_trust_period is still going.
+  
+  set fixed_trust_period 120
+  
+  ask traders [     
+    
+    set trust_in_via_internet 100
+    set buying_method "internet"
+    adjust_trust -50
+    
+    if trust_in_via_internet != 100 [
+      error "Unit test 14c - trust was changed in fixed_trust_period"
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_15_check_profit
+  
+  ; Unit test 15a - test if check_profit procedure is called correctly.
+  
+  create-traders 1 [
+    set profit_this_year 200
+    set buying_method "internet"
+    set trust_in_via_internet 20
+  ]
+  
+  set minimum_profit 100
+  set fixed_trust_period 0
+  
+  ask traders [ 
+    
+    check_profit 
+    
+    if trust_in_via_internet != 20 [
+      error "Unit test 15a - trust has been altered whilst sufficient profit was made."
+    ]
+    
+    set minimum_profit 300
+    check_profit
+    
+    if trust_in_via_internet != 10 [
+      error "Unit test 15a - trust has not been altered whilst too little profit was made."
+    ]    
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+  
+end
+
+To unit_test_16_remove_request_data 
+  
+  ; Unit test 16a. Test if the first year is removed correctly. 
+  
+  create-traders 1 [
+    set requested_items_clients (list (list "year 0") (list "rose" "weed") (list "year 1") (list "apple" "fungus") (list "year 2"))
+  ]
+  repeat 36 [tick]
+  
+  ask traders [
+    remove_request_data [ "year 0" ] [ "year 0" ]
+    
+    if requested_items_clients != (list (list "rose" "weed") (list "year 1") (list "apple" "fungus") (list "year 2") (list "year 0")) [
+      error "Unit test 16a - Removal of first year of buyer data did not happen correctly."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 16b. Test if the second year is removed correctly. 
+  
+  ask traders [
+    remove_request_data [ "year 1" ] ["year 1"]
+    
+    if requested_items_clients != (list (list "apple" "fungus") (list "year 2") (list "year 0") (list "year 1")) [
+      error "Unit test 16b - Removal of second year of buyer data did not happen correctly."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 16c. Test if the third year is removed correctly.
+  
+  ask traders [
+    remove_request_data ["year 2"] ["year 2"]
+    
+    if requested_items_clients != (list (list "year 0") (list "year 1") (list "year 2") ) [
+      error "Unit test 16c - Removal of third year of buyer data did not happen correctly."
+    ]
+  ] 
+  
+  ;---
+  
+  reset-ticks
+  ask turtles [die]
+  
+end
+
+To unit_test_17_plants_get_diseases
+  
+  ; Unit test 17a - test if plants get diseases correctly.
+  
+  set %_avg_chance_to_get_disease 100
+  
+  create-end_users 10 [
+    set disease_crop_end_user "none"
+  ]
+  
+  ask end_users [ plants_get_diseases ]
+  
+  if any? end_users with [disease_crop_end_user = "none"] [
+    error "Unit test 17a - not all end-users got a disease on their crops with a chance to get disease 100%."
+  ]
+  
+  set %_avg_chance_to_get_disease 0
+  
+  ask end_users [
+    set disease_crop_end_user "none"
+    plants_get_diseases
+  ]
+  
+  if count end_users with [disease_crop_end_user = "none"] != 10 [
+    error "Unit test 17a - end-users got a disease whilst they shouldn't have."
+  ]
+  
+  set %_avg_chance_to_get_disease 90
+  
+  ask end_users [
+    set disease_crop_end_user "none"
+    plants_get_diseases
+  ]
+  
+  if count end_users with [disease_crop_end_user != "none"] <= 1 [
+    error "Unit test 17a - very unlikely: only 0 or 1 out of 10 end-users got a disease with an average chance of 90% of getting a disease."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_18_end_users_set_strategy
+  
+  ; Unit test 18a - test if traders set strategy at "trader" when fixed_trust_period is not over yet. 
+  
+  reset-ticks
+  set fixed_trust_period 12
+  
+  create-end_users 10 [
+    set trust_in_via_internet 75
+    set trust_in_via_traders 90
+    set buying_method "none"
+    set disease_crop_end_user "fungus"
+    set my_neighbors no-turtles
+  ]
+  
+  ask end_users [
+    end_users_set_strategy
+  ]
+  
+  if count end_users with [buying_method = "trader"] != 10 [
+    error "Unit test 18a - some end-users with diseases did not set a strategy."
+  ]
+  
+  ask end_users [set buying_method "none"]
+  ask n-of 5 end_users [set disease_crop_end_user "none"]
+  
+  ask end_users [
+    end_users_set_strategy
+  ]
+  
+  if count end_users with [buying_method = "trader"] != 5 [
+    error "Unit test 18a - some end_users that should have set a strategy probably didn't."
+  ]
+  
+  ;---
+  
+  ; Unit test 18b - test if strategy is set correctly after fixed_trust_period
+  
+  repeat 15 [tick]
+  
+  ask end_users [
+    set disease_crop_end_user "fungus"
+    end_users_set_strategy
+  ]
+  
+  if count end_users with [buying_method = "trader"] != 10 [
+    error "Unit test 18b - some end-users with diseases and a higher trust in traders did not set strategy trader."
+  ]
+  
+  ask n-of 5 end_users [
+    set trust_in_via_internet 95
+  ]
+  
+  ask end_users [
+    set buying_method "none"
+    end_users_set_strategy
+  ]
+  
+  if count end_users with [buying_method = "internet"] != 5 or count end_users with [buying_method = "trader"] != 5 [
+    error "Unit test 18b - end-users did not set strategy correctly."
+  ]
+  
+  ask end_users [
+    set trust_in_via_internet 90
+    set buying_method "none"
+    end_users_set_strategy
+  ]
+  
+  if count end_users with [buying_method = "trader"] < 4 [
+    error "Unit test 18b - end-users with trust in via traders = trust in via internet probably set strategy incorrectly. Can happen due to randomness."
+  ]
+  
+  ;---
+  
+  reset-ticks
+  ask turtles [die]
+  
+end
+
+To unit_test_19_trader_makes_money
+  
+  ; Unit test 19a - test if profit is calculated correctly for an original PPP with no previous owners.
+  
+  create-traders 1 [
+    set profit_this_year 0
+  ]
+  
+  create-PPPs 1 [
+    set original_product? true
+    set sale_price_end_user 60
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set owner one-of traders
+    set previous_owners []
+  ]
+  
+  trader_makes_money one-of orders
+  
+  ask traders [
+    if profit_this_year != 30 [
+      error "Unit test 19a - trader profit was not calculated correctly with no previous owners."
+    ]
+    
+    set profit_this_year 0
+  ]
+  
+  ;---
+  
+  ; Unit test 19b - test if profit is calculated correctly for an original PPP with two previous owners.
+  
+  ask orders [ set previous_owners ["fictional trader 1" "fictional trader 2"]]
+  
+  set profit_per_trader_to_trader_sale 5
+  trader_makes_money one-of orders 
+  
+  ask traders [
+    if profit_this_year != 20 [
+      error "Unit test 19b - trader profit was not calculated correctly with previous owners."
+    ] 
+    
+    set profit_this_year 0
+  ]
+  
+  ;---
+  
+  ; Unit test 19c - test if profit is calculated correctly for an NOP product with no previous owners.
+  
+  ask orders [ set previous_owners []]
+  ask PPPs [
+    set original_product? false
+  ]
+  
+  trader_makes_money one-of orders 
+  
+  ask traders [
+    if profit_this_year != 54 [
+      error "Unit test 19c - trader profit was not calculated correctly for an NOP product with no previous owners." 
+    ] 
+    
+    set profit_this_year 0
+  ]
+  
+  ;---
+  
+  ; Unit test 19d - test if profit is calculated correctly for an NOP product with previous owners.
+  
+  ask orders [ set previous_owners ["fictional trader 1" "fictional trader 2"]]
+  
+  trader_makes_money one-of orders 
+  
+  ask traders [
+    if profit_this_year != 20 [
+      error "Unit test 19d - trader profit was not calculated correctly for an NOP product with previous owners." 
+    ] 
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_20_register_KPI
+  
+  ; Unit test 20a - test if KPIs are registered correctly.
+  
+  create-PPPs 1 [
+    set legal_in_EU? false
+  ]
+  
+  ask PPPs [ register_KPI ]
+  
+  if illegal_EU_products_end_user != 1 [
+    error "Unit test 20a - KPI  illegal_EU_products_end_user not registered correctly."
+  ]
+  
+  ask PPPs [
+    set original_product? false
+    set legal_in_EU? true]
+  
+  ask PPPs [ register_KPI ]
+  
+  if NOP_products_end_user != 1 [
+    error "Unit test 20a - KPI  illegal_EU_products_end_user not registered correctly."
+  ]
+  
+  ask PPPs [
+    set original_product? true
+    set legal_in_EU? true]
+  
+  ask PPPs [ register_KPI ]
+  
+  if legal_products_end_user != 1 [
+    error "Unit test 20a - KPI  illegal_EU_products_end_user not registered correctly."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_21_change_trust_end_user
+  
+  ; Unit test 21a - test if trust of the end-user is changed correctly.
+  
+  set fixed_trust_period 5
+  repeat 10 [tick]
+  
+  create-end_users 1 [
+    set trust_in_via_traders 50
+    set trust_in_via_internet 70
+    set buying_method "trader"
+  ]
+  
+  ask end_users [
+    
+    change_trust_end_user -50
+    
+    if trust_in_via_traders != 25 or trust_in_via_internet != 70 [
+      error "Unit test 21a - trust was not changed correctly."
+    ]
+    
+    set buying_method "internet" 
+    
+    change_trust_end_user -50
+    
+    if trust_in_via_traders != 25 or trust_in_via_internet != 35 [
+      error "Unit test 21a - trust was not changed correctly."
+    ]    
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_22_end_user_cure
+  
+  ; Unit test 22a - test if cure variables are altered correctly.
+  
+  create-end_users 1 [
+    set disease_crop_end_user "fungus"
+    set months_with_disease 2
+    set buying_method "trader"
+    set trust_in_via_traders 50
+  ]
+  
+  ask end_users [ 
+    end_user_cure
+    
+    if disease_crop_end_user != "none" or months_with_disease != 0 [
+      error "Unit test 22a - end-user variables were not reset correctly upon cure."
+    ]
+    
+    if trust_in_via_traders != 65 [
+      error "Unit test 22a - trust was not reduced correctly."
+    ]
+  ]
+  
+  if count_cured != 1 [
+    error "Unit test 22a - count_cured did not increase."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_23_trade_product
+  
+  ; Unit test 23a - test if procedure works for an order with more than 1 product in it.
+  
+  create-traders 1 [
+    set profit_this_year 0
+    set requested_items_clients []
+    set trust_in_via_internet 60
+  ]
+  
+  create-PPPs 1 [
+    set legal_in_EU? false
+    set original_product? true
+    set sale_price_end_user 60
+    set crop_type_PPP "rose"
+    set disease_PPP "fungus"
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set owner one-of traders
+    set previous_owners []
+    set number_of_PPPs 10
+    set dead_counter 0
+    set selling_method "internet"
+  ]
+  
+  create-end_users 1 [
+    set my_trader one-of traders
+    set my_stock nobody
+  ]
+  
+  set illegal_EU_products_end_user 0
+  
+  ask end_users [
+    trade_product one-of orders
+  ]
+  
+  if illegal_EU_products_end_user != 1 [
+    error "Unit test 23a - KPIs not updated correctly in trade_product."
+  ]
+  
+  ask traders [
+    if requested_items_clients != [] [
+      error "Unit test 23a - requested_items_clients of trader altered whilst it shouldn't have been."
+    ]
+  ]
+  
+  if count orders != 2 [
+    error "Unit test 23a - no new order created."
+  ]
+  
+  ask orders with [owner = one-of end_users] [
+    if previous_owners != (list one-of traders) [
+      error "Unit test 23a - previous owners of new order not registered correctly."
+    ]
+  ]
+  
+  ask orders with [dead_counter = 0] [
+    if number_of_PPPs != 9 [
+      error "Unit test 23a - number of PPPs in original order not altered correctly."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 23b - test if procedure works for an order with only 1 product in it. 
+  
+  ask orders [ die ]
+  
+  set fixed_trust_period 0
+  repeat 10 [tick]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set owner one-of traders
+    set previous_owners []
+    set number_of_PPPs 1
+    set dead_counter 0
+    set selling_method "internet"
+  ]
+  
+  ask end_users [ 
+    set my_trader "fictional trader 1" 
+    set disease_crop_end_user "fungus"
+    set crop_type_end_user "rose"
+  ]
+  
+  ask end_users [
+    trade_product one-of orders
+  ]
+  
+  ask traders [
+    if requested_items_clients != (list ["rose" "fungus"]) [
+      error "Unit test 23b - requested items not registered for online trader."
+    ]
+    
+    if trust_in_via_internet != 78 [
+      error "Unit test 23b - trust in via traders not altered correctly."
+    ]
+  ]
+  
+  ask orders [
+    if number_of_PPPs != 0 or dead_counter != 5 [
+      error "Unit test 23b - original order not modified correctly."
+    ] 
+  ]
+  
+  ;---
+  
+  reset-ticks
+  ask turtles [die]
+  
+  
+end
+
+To unit_test_24_end_user_no_cure
+  
+  ; Unit test 24a - test if procedure works correctly without a knowingly second best option product.
+  
+  create-end_users 1 [
+    set months_with_disease 0
+    set buying_method "trader"
+    set trust_in_via_traders 100
+  ]
+  
+  set fixed_trust_period 0
+  repeat 10 [tick]
+  
+  ask end_users [    
+    end_user_no_cure false
+    
+    if months_with_disease != 1 or trust_in_via_traders != 80 [
+      error "Unit test 24a - end-user variables not altered correctly."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 24b - test if procedure works correctly with a knowingly second best option product.
+  
+  ask end_users [
+    end_user_no_cure true
+    
+    if months_with_disease != 2 or trust_in_via_traders != 76 [
+      error "Unit test 24b - end-user variables not altered correctly for a knowingly second best option."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 24c - test if procedure works correctly when maximum months with a disease is reached.
+  
+  ask end_users [
+    set disease_crop_end_user "fungus"
+    
+    end_user_no_cure false
+    
+    if months_with_disease != 0 or disease_crop_end_user != "none" or trust_in_via_traders != 45.6 [
+      error "Unit test 24c - end-user variables not altered correctly after 3 months no cure."
+    ]
+  ]
+  
+  ;---
+  
+  reset-ticks
+  ask turtles [die]
+  
+end
+
+To unit_test_25_use_product
+  
+  ; Unit test 25a - test if the procedure works for an effective product.
+  
+  create-PPPs 1 [
+    set crop_type_PPP "rose"
+    set effectiveness 100
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set number_of_PPPs 10
+  ]
+  
+  create-end_users 1 [
+    set crop_type_end_user "rose"
+    set disease_crop_end_user "fungus"
+    set buying_method "trader"
+    set trust_in_via_traders 50
+  ]
+  
+  set fixed_trust_period 0
+  repeat 10 [tick]
+  
+  ask end_users [
+    use_product one-of orders
+    if disease_crop_end_user != "none" [
+      error "Unit test 25a - disease not cured whilst it should have been."
+    ]
+    
+    if trust_in_via_traders != 65 [
+      error "Unit test 25a - trust in buying method did not increase correctly."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 25b - test procedure for an ineffective PPP
+  
+  ask PPPs [set effectiveness 0]
+  
+  ask end_users [ 
+    set disease_crop_end_user "fungus" 
+    set trust_in_via_traders 50
+    set months_with_disease 1
+    
+    use_product one-of orders
+    
+    if disease_crop_end_user != "fungus" [
+      error "Unit test 25b - disease cured whilst it should not have been."
+    ]
+    
+    if trust_in_via_traders != 40 [
+      error "Unit test 25b - trust in buying method did not decrease correctly."
+    ]
+    
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_26_traders_set_stocking_strategy
+  
+  ; Unit test 26a - test if all strategies are selected properly if trust in this strategy is highest.
+  
+  create-traders 1 [
+    set trust_in_via_traders 80
+    set trust_in_via_PH 70
+    set trust_in_via_internet 60
+    set buying_method "none"
+    set propensity_to_violate 100
+    set my_traders self
+  ]
+  
+  set fine-to-profit_ratio 0.2
+  set nr_of_inspectors 1
+  set %_always_comply_traders 80
+  
+  ask traders [
+    traders_set_stocking_strategy
+    
+    if buying_method != "trader" [
+      error "Unit test 26a - strategy of trader not properly set."
+    ]
+    
+    set trust_in_via_PH 90
+    
+    traders_set_stocking_strategy
+    
+    if buying_method != "permit_holder" [
+      error "Unit test 26a - strategy of permit holder not properly set." ]
+    
+    set trust_in_via_internet 100
+    
+    traders_set_stocking_strategy
+    
+    if buying_method != "internet" [
+      error "Unit test 26a - strategy of internet not properly set."        
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 26b - test variations of not choosing the internet even though it is most trusted.
+  
+  ask traders [
+    set propensity_to_violate 72
+    traders_set_stocking_strategy
+    
+    if buying_method != "permit_holder" [
+      error "Unit test 26b - propensity to violate is low, yet strategy is internet."
+    ] 
+    
+    set fine-to-profit_ratio 2
+    set propensity_to_violate 90
+    set nr_of_traders 1
+    set nr_of_end_users 0
+    
+    traders_set_stocking_strategy
+    
+    if buying_method != "permit_holder" [
+      error "Unit test 26b - fine-to-profit ratio is high, yet strategy is internet."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_27_decide_what_to_stock
+  
+  ; Unit test 27a - test the procedure without any stocked products of the trader.
+  
+  create-traders 1 [
+    set order_products? true
+    set requested_items_clients [["avocado" "weed"] ["avocado" "weed" 5] ["rose" "fungus"]]
+  ]
+  
+  set max_traders_to_buy_from 1
+  
+  let dict table:make
+  
+  table:put dict (list "avocado" "weed") 2
+  
+  ask traders [
+    let to_stock decide_what_to_stock
+    if to_stock != dict [
+      error "Unit test 27a - request dictionary not created correctly when trader has no products in stock."
+    ]
+    set requested_items_clients [["avocado" "weed"] ["avocado" "weed" 5] ["rose" "fungus"] ["rose" "fungus" 10] ["apple" "weed" 3]]
+  ]
+  
+  set dict table:make
+  table:put dict (list "avocado" "weed") 2
+  table:put dict (list "rose" "fungus") 4
+  table:put dict (list "apple" "weed") 1
+  
+  ask traders [
+    let to_stock decide_what_to_stock    
+    if to_stock != dict [
+      error "Unit test 27a - longer request dictionary not created correctly when trader has no products in stock."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 27b - test the procedure with stocked products of the trader.
+  
+  create-PPPs 1 [
+    set disease_PPP "fungus"
+    set crop_type_PPP "rose" 
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set owner one-of traders
+    set number_of_PPPs 10
+  ]
+  
+  set dict table:make
+  table:put dict (list "avocado" "weed") 2
+  table:put dict (list "apple" "weed") 1
+  
+  ask traders [
+    let to_stock decide_what_to_stock   
+    if to_stock != dict [
+      error "Unit test 27b - request dictionary not created correctly when trader has all products in stock."
+    ]
+  ]
+  
+  ask orders [
+    set number_of_PPPs 3
+  ]
+  
+  set dict table:make
+  table:put dict (list "avocado" "weed") 2
+  table:put dict (list "rose" "fungus") 1
+  table:put dict (list "apple" "weed") 1
+  
+  
+  ask traders [
+    let to_stock decide_what_to_stock    
+    if to_stock != dict [
+      error "Unit test 27b - request dictionary not created correctly when trader has a portion of the products in stock."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_28_send_package
+  
+  ; Unit test 28a - test 4 use cases of packages coming through.
+  
+  create-PPPs 1 [
+    set legal_in_EU? true 
+    set similarity_to_original_product 100
+    set original_product? true
+  ]
+  
+  let came_through? send_package one-of PPPs
+  
+  if came_through? = false [
+    error "Unit test 28a - legal package didn't come through." 
+  ]
+  
+  ask PPPs [
+    set legal_in_EU? false 
+  ]
+  
+  set inspection_chance_NL_border 100
+  
+  set came_through? send_package one-of PPPs
+  
+  if came_through? = true [
+    error "Unit test 28a - illegal in EU package came through." 
+  ]
+  
+  ask PPPs [
+    set legal_in_EU? true
+    set original_product? false
+  ]
+  
+  set came_through? send_package one-of PPPs
+  
+  if came_through? = false [
+    error "Unit test 28a - perfect similarity NOP package did not come through." 
+  ]
+  
+  ask PPPs [
+    set similarity_to_original_product 0
+  ]
+  
+  set came_through? send_package one-of PPPs
+  
+  if came_through? = true [
+    error "Unit test 28a - NOP product that is not at all similar came through." 
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_29_order_product_PH_internet
+  
+  ; Unit test 29a - test procedure for one requested and available legal product.
+  
+  let stock_request_dict table:make
+  table:put stock_request_dict  (list "avocado" "weed") 3
+  
+  create-PPPs 1 [
+    set crop_type_PPP "avocado"
+    set disease_PPP "weed"
+    set legal_in_EU? true
+    set original_product? true
+  ]
+  
+  let available-items turtle-set PPPs
+  
+  create-traders 1 [    
+    set buying_method "permit_holder"
+    set online_offer? true
+    set my_stock nobody
+  ]
+  
+  ask traders [
+    order_product_PH_internet stock_request_dict available-items
+  ]
+  
+  if count orders != 1 [
+    error "Unit test 29a - no order was created for a legal product ordered via the internet."
+  ]
+  
+  ask orders [
+    if PPP_in_order != one-of PPPs [
+      error "Unit test 29a - wrong PPP in order."
+    ]
+    
+    if number_of_PPPs != 3 [
+      error "Unit test 29a - wrong number of PPPs in order."
+    ]
+    
+    if owner != one-of traders [
+      error "Unit test 29a - wrong owner of order."
+    ]
+    
+    if selling_method != "permit_holder" [
+      error "Unit test 29a - wrong selling method of order."
+    ]
+    if online? = false [
+      error "Unit test 29a - order did not become available online whilst it should have."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 29b - test procedure with no product available.
+  
+  ask orders [die]
+  ask PPPs [die]
+  set available-items PPPs
+  
+  ask traders [
+    set trust_in_via_PH 50
+    order_product_PH_internet stock_request_dict available-items
+    
+    if count orders != 0 [
+      error "Unit test 29b - order created without an available product."
+    ]
+    
+    if trust_in_via_PH != 45 [
+      error "Unit test 29b - trust in via permit holder not reduced correctly upon no available product."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 29c - test procedure with an illegal product and a 100% catch rate.
+  
+  create-PPPs 1 [
+    set crop_type_PPP "avocado"
+    set disease_PPP "weed"
+    set legal_in_EU? false
+    set original_product? true
+  ]
+  
+  set inspection_chance_NL_border 100
+  
+  ask traders [
+    set trust_in_via_PH 50
+    order_product_PH_internet stock_request_dict available-items
+    
+    if count orders != 0 [
+      error "Unit test 29c - order created with an illegal product and 100% catch rate."
+    ]
+    
+    if trust_in_via_PH != 40 [
+      error "Unit test 29b - trust in via permit holder not reduced correctly upon not receiving a product."
+    ]
+  ]  
+  
+  ;--- 
+  
+  ; Unit test 29d - test procedure with an illegal product and a 0% catch rate.
+  
+  set inspection_chance_NL_border 0
+  
+  ask traders [
+    set trust_in_via_PH 50
+    order_product_PH_internet stock_request_dict available-items
+  ]  
+  
+  if count orders != 1 [
+    error "Unit test 29a - no order was created for a legal product ordered via the internet."
+  ]
+  
+  ask orders [
+    if PPP_in_order != one-of PPPs [
+      error "Unit test 29a - wrong PPP in order."
+    ]
+    
+    if number_of_PPPs != 3 [
+      error "Unit test 29a - wrong number of PPPs in order."
+    ]
+    
+    if owner != one-of traders [
+      error "Unit test 29a - wrong owner of order."
+    ]
+    
+    if selling_method != "permit_holder" [
+      error "Unit test 29a - wrong selling method of order."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+  
+end
+
+To unit_test_30_change_trust_based_on_selling_method
+  
+  ; Unit test 30a - test if trust is reduced correctly based on selling method of the order.
+  
+  create-traders 1 [
+    set trust_in_via_traders 50
+    set trust_in_via_internet 50
+    set trust_in_via_PH 50 
+  ]
+  
+  create-orders 1 [
+    set selling_method "trader"
+    set owner one-of traders
+  ]
+  
+  ask orders [
+    change_trust_based_on_selling_method 10
+  ]
+  
+  ask traders [
+    if trust_in_via_traders != 55 [
+      error "Unit test 30a - trust in via traders not increased correctly."
+    ]
+  ]
+  
+  ask orders [
+    set selling_method "internet"
+    change_trust_based_on_selling_method 20
+  ]
+  
+  ask traders [
+    if trust_in_via_internet != 60 [
+      error "Unit test 30a - trust in via internet not increased correctly."
+    ]
+  ]
+  
+  ask orders [
+    set selling_method "permit_holder"
+    change_trust_based_on_selling_method 30
+  ]
+  
+  ask traders [
+    if trust_in_via_PH != 65 [
+      error "Unit test 30a - trust in via permit holder not increased correctly."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_31_order_product_traders
+  
+  ; Unit test 31a - test if procedure works correctly for one available legal product.
+  
+  let stock_request table:make
+  table:put stock_request (list "avocado" "weed") 5
+  table:put stock_request (list "rose" "fungus") 2
+  table:put stock_request (list "apple" "weed") 2
+  
+  create-traders 1 [
+    set end_user_only? false 
+    set requested_items_clients []
+    set my_stock nobody
+  ]
+  
+  create-traders 1 [
+    set end_user_only? true
+    set my_traders one-of other traders
+    set buying_method "trader"
+    set online_offer? false
+    set trust_in_via_traders 50
+    set my_stock nobody
+  ]
+  
+  create-PPPs 1 [
+    set disease_PPP "weed" 
+    set crop_type_PPP "avocado"
+    set original_product? true
+    set legal_in_EU? true
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set number_of_PPPs 9
+    set owner one-of traders with [end_user_only? = false]
+    ask owner [set my_stock myself]
+    set previous_owners []
+  ]
+  
+  set max_traders_to_buy_from 3
+  set profit_per_trader_to_trader_sale 5
+  
+  ask traders with [end_user_only?][
+    order_product_traders stock_request 
+  ]
+  
+  ask traders with [end_user_only? = false][
+    if requested_items_clients != (list (list "avocado" "weed" 2) (list "rose" "fungus" 1) (list "apple" "weed" 1)) [
+      error "Unit test 31a - client request not registered correctly."
+    ]
+    if profit_this_year != 25 [
+      print profit_this_year
+      error "Unit test 31a - profit of selling trader not registered correctly."
+    ]
+  ]
+  
+  ask traders with [end_user_only?] [   
+    if trust_in_via_traders != 40.5 [
+      print trust_in_via_traders
+      error "Unit test 31a - trust in via traders upon 2x no product not registered correctly."
+    ]
+  ]
+  
+  if count orders != 2 [
+    error "Unit test 31a - no new order created."
+  ]
+  
+  ask orders with [owner = one-of traders with [end_user_only?]][
+    if number_of_PPPs != 5 [
+      error "Unit test 31a - wrong number of PPPs in order." 
+    ]
+    if previous_owners != (list one-of traders with [end_user_only? = false]) [
+      error "Unit test 31a - wrong previous owners."
+    ]
+    if selling_method != "trader" [
+      error "Unit test 31a - wrong selling method."
+    ]
+    if online? != false [
+      error "Unit test 31a - order is offered online whilst it should not have been."
+    ]
+    
+    die
+  ]
+  
+  ask orders [
+    if number_of_PPPs != 4 [
+      error "Unit test 31a - number of PPPs in original order not reduced correctly."
+    ]
+    
+    die
+  ]
+  
+  let stock_request_after_procedure table:make
+  table:put stock_request_after_procedure (list "rose" "fungus") 2
+  table:put stock_request_after_procedure (list "apple" "weed") 2
+  
+  if stock_request != stock_request_after_procedure [
+    error "Unit test 31a - original stock request not altered correctly." 
+  ]
+  
+  ;---
+  
+  ; Unit test 31b - test if procedure works correctly if no product is available. 
+  
+  ask traders with [end_user_only?][
+    set trust_in_via_traders 50
+    order_product_traders stock_request 
+    if trust_in_via_traders != 40.5 [
+      error "Unit test 31b - no product available, trust reduction didn't happen correctly."
+    ]
+  ]
+  
+  if stock_request != stock_request_after_procedure [
+    error "Unit test 31b - shopping list changed whilst no products available."
+  ]
+  
+  if count orders != 0 [
+    print count orders
+    error "Unit test 31b - orders available whilst there shouldn't be any."
+  ]
+  
+  ask traders with [end_user_only? = false][
+    if requested_items_clients != (list (list "avocado" "weed" 2) (list "rose" "fungus" 1) (list "apple" "weed" 1) (list "rose" "fungus" 1) (list "apple" "weed" 1)) [
+      error "Unit test 31b - client request not registered correctly."
+    ]
+    if profit_this_year != 25 [
+      error "Unit test 31b - profit of selling trader changed whilst it shouldn't have."
+    ]
+  ]
+  
+  ;---
+  
+  ;Unit test 31c - test if the procedure works correctly if the selling trader sells all of its last stock of a product.
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set number_of_PPPs 5
+    set owner one-of traders with [end_user_only? = false]
+    ask owner [set my_stock myself]
+    set previous_owners []
+    set selling_method "internet"
+  ]
+  
+  ask PPPs [ 
+    set original_product? false
+    set sale_price_end_user 60
+  ]
+  
+  ask traders with [end_user_only? = false] [
+    set profit_this_year 0
+    set trust_in_via_internet 50
+  ]
+  
+  
+  set stock_request table:make
+  table:put stock_request (list "avocado" "weed") 9
+  
+  ask traders with [end_user_only?][
+    set trust_in_via_traders 50
+    order_product_traders stock_request 
+    if trust_in_via_traders != 45 [
+      error "Unit test 31c - product available, trust reduced whilst it shouldn't have."
+    ]
+  ]
+  
+  set stock_request_after_procedure table:make
+  table:put stock_request_after_procedure (list "avocado" "weed") 4
+  
+  if stock_request != stock_request_after_procedure [
+    error "Unit test 31c - shopping list didn't change correctly with not enough products available."
+  ]
+  
+  ask traders with [end_user_only? = false] [
+    if profit_this_year != 145 [
+      print profit_this_year
+      error "Unit test 31c - NOP product did not render the right profit for selling trader."
+    ]
+    if order_products? = false [
+      error "Unit test 31c - owner sold out but does not want to order products."
+    ]
+    if trust_in_via_internet != 65 [
+      error "Unit test 31c - selling trader did not increase trust correctly upon selling full order."
+    ]
+  ]
+  
+  if count orders with [dead_counter = 5] != 1 [
+    error "Unit test 31c - original order didn't die."
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_32_end_users_with_diseases_ask_traders
+  
+  ; Unit test 32a. Test if procedure works correctly if the trader has no suitable product available. 
+  
+  create-traders 1 [
+    set requested_items_clients []
+    set order_products? false
+    set my_stock turtle-set nobody
+  ]
+  
+  create-end_users 1 [
+    set crop_type_end_user "apple"
+    set disease_crop_end_user "weed"
+    set my_trader one-of traders
+    set buying_method "trader"
+    set trust_in_via_traders 100
+    set my_stock nobody
+  ]
+  
+  ask end_users [
+    end_users_with_diseases_ask_traders
+    if trust_in_via_traders != 80 [
+      error "Unit test 32a - no product available, yet end-user trust in via traders not reduced correctly."
+    ]
+  ]
+  
+  ask traders [
+    if requested_items_clients != (list (list "apple" "weed")) [
+      error "Unit test 32a - end-user request not registered correctly." 
+    ]
+    
+    if order_products? = false [
+      error "Unit test 32a - no product available yet trader is not driven to buy product."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 32b. Test if procedure works correctly if the trader has a suitable product available.
+  
+  create-PPPs 1 [
+    set disease_PPP "weed"
+    set crop_type_PPP "apple"
+    set legal_in_EU? true
+    set original_product? true
+    set effectiveness 100
+  ]
+  
+  create-orders 1 [
+    set owner one-of traders
+    ask owner [set my_stock turtle-set myself]
+    set number_of_PPPs 5   
+    set PPP_in_order one-of PPPs
+    set previous_owners []
+  ]
+  
+  ask traders [ set order_products? false]
+  
+  ask end_users [
+    end_users_with_diseases_ask_traders
+    if trust_in_via_traders != 100 [
+      error "Unit test 32b - disease cured, yet trust in via traders too low."
+    ]
+  ]
+  
+  ask orders with [owner = one-of traders] [
+    if number_of_PPPs != 4 [
+      error "Unit test 32b - number of PPPs in original order not reduced correctly." 
+    ]
+  ]
+  
+  ask traders [
+    if order_products? [
+      error "Unit test 32b - trader wants to order products whilst it had products in stock." 
+    ]
+  ]
+  
+  ask orders with [owner = one-of end_users] [
+    if previous_owners != (list one-of traders) [
+      error "Unit test 32b - wrong previous owner of new order of end-user." 
+    ]
+    
+    die
+  ]
+  
+  ;---
+  
+  ; Unit test 32c - test procedure with a next suitable product.
+  
+  ask PPPs [ 
+    set crop_type_PPP "rose"
+    set effectiveness 0 ]
+  
+  ask end_users [
+    set disease_crop_end_user "weed"
+    end_users_with_diseases_ask_traders
+    if trust_in_via_traders != 95 [
+      print trust_in_via_traders
+      error "Unit test 32c - disease not cured with a knowingly second-best option and trust not modified correctly."
+    ]
+  ]
+  
+  ask traders [
+    if order_products? = false [
+      error "Unit test 32c - trader only had a second-best option and did not want to order products."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_33_end_users_with_diseases_search_internet
+  
+  ; Unit test 33a - test procedure for an online product that is available via a trader.
+  
+  create-end_users 1 [
+    set disease_crop_end_user "weed"
+    set crop_type_end_user "rose"
+    set buying_method "internet"
+    set trust_in_via_internet 50
+    set my_stock nobody
+  ]
+  
+  create-PPPs 1 [
+    set disease_PPP "weed"
+    set crop_type_PPP "rose"
+    set sale_price_end_user 60
+    set legal_in_EU? true
+    set original_product? true
+    set effectiveness 100
+  ]
+  
+  create-traders 1 [
+    set profit_this_year 0
+    set online_offer? true
+    set requested_items_clients []
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set number_of_PPPs 5
+    set online? true
+    set owner one-of traders
+    ask owner [set my_stock turtle-set myself]
+    set previous_owners []
+  ]
+  
+  set  online_order_set_end_users turtle-set orders
+  
+  ask end_users [
+    end_users_with_diseases_search_internet
+    
+    if disease_crop_end_user != "none" [
+      error "Unit test 33a - disease of end-user not cured whilst it should have been."
+    ]
+  ]
+  
+  ask orders with [owner = one-of traders] [
+    if number_of_PPPs != 4 [
+      error "Unit test 33a - number of PPPs of trader did not get reduced correctly."
+    ]
+  ]
+  
+  if count orders with [owner = one-of end_users ] != 1 [
+    error "Unit test 33a - no order created for end-user."
+  ]
+  
+  ;---
+  
+  ; Unit test 33b - test procedure for an online product without a physical owner. 
+  
+  ask orders [
+    set owner "internet"
+  ]
+  
+  ask traders [set my_stock nobody]
+  
+  ask end_users [
+    set disease_crop_end_user "weed"
+    end_users_with_diseases_search_internet
+    
+    if disease_crop_end_user != "none" [
+      error "Unit test 33b - disease of end-user not cured whilst it should have been."
+    ]
+  ]
+  
+  if count orders with [previous_owners = (list "internet") and owner = one-of end_users ] != 1 [
+    error "Unit test 33b - no order with owner internet was created."
+  ]
+  
+  ask orders with [owner = one-of traders] [
+    if number_of_PPPs != 4 [
+      error "Unit test 33b - number of PPPs in original internet order modified whilst it shouldn't have been."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 33c - test if procedure works correctly when no suitable online product is available.
+  
+  ask PPPs [
+    set crop_type_PPP "corn"
+    set effectiveness 0
+  ]
+  
+  ask end_users [
+    set months_with_disease 2
+    set trust_in_via_internet 100
+    set disease_crop_end_user "weed"
+    end_users_with_diseases_search_internet
+    
+    if disease_crop_end_user != "none" [
+      error "Unit test 33c - plants of end-user didn't die whilst they should have."
+    ]
+    
+    if trust_in_via_internet != 60 [
+      error "Unit test 33c - trust in via internet did not reduce according to plant death."
+    ]
+  ]
+  
+  
+  ;---
+  
+  ask turtles [die]
+  
+end  
+
+To unit_test_34_create_inspection_list
+  
+  ; Unit test 34 - test if the inspection list is created correctly.
+  
+  create-end_users 10 [
+  ]
+  
+  set inspect_end_users? true
+  set inspect_end_user_only_traders? false
+  set inspect_trader_to_trader_only_traders? false
+  
+  create_inspection_list
+  
+  if inspection_list != (list end_users) [
+    error "Unit test 34a - inspection list was not created correctly."
+  ]
+  
+  ;---
+  
+  ask turtles [ die ]
+  
+end
+
+To unit_test_35_catch_and_fine
+  
+  ; Unit test 35a - test if procedure works.
+  
+  create-end_users 1 [
+    set trust_in_via_traders 100
+  ]
+  
+  create-orders 1 [
+    set owner one-of end_users
+    ask owner [set my_stock turtle-set myself]
+    set selling_method "trader"
+  ]
+  
+  catch_and_fine one-of orders
+  
+  ask end_users [
+    if trust_in_via_traders != 50 [
+      error "Unit test 35a - trust reduction failed."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_36_to_inspect
+  
+  ; Unit test 36a - test if inspection of a trader with legal PPPs only happens correctly.
+  
+  create-traders 1 [
+    set trust_in_via_traders 70
+  ]
+  
+  create-PPPs 1 [
+    set original_product? true
+    set legal_in_EU? true
+    set similarity_to_original_product 100    
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set number_of_PPPs 100
+    set owner one-of traders
+    ask owner [set my_stock turtle-set myself]
+    set selling_method "trader"
+  ]
+  
+  create-inspectors 1 [
+    set assigned_to one-of traders
+  ]
+  
+  set nr_of_PPPs_inspected_upon_visit_trader 10
+  set company_observed_malpractice 0
+  set company_observed_compliance 0
+  
+  ask inspectors [
+    to_inspect
+    if assigned_to != "none" [
+      error "Unit test 36a - inspector still assigned to inspectee."
+    ]
+  ]
+  
+  if company_observed_compliance != 1 and company_observed_malpractice != 0 [
+    error "Unit test 36a - inspection outcome not registered correctly."
+  ]
+  
+  ask traders [
+    if round trust_in_via_traders != 85 [
+      print trust_in_via_traders
+      error "Unit test 36a - trust in via traders did not increase correctly upon inspection of legal PPPs."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 36b - test if inspection of a trader with PPPs that are illegal in the EU happens correctly.
+  
+  ask traders [ set trust_in_via_traders 70 ]
+  ask PPPs [ set legal_in_EU? false ]
+  
+  ask inspectors [
+    set assigned_to one-of traders
+    to_inspect
+  ]
+  
+  if company_observed_compliance != 1 and company_observed_malpractice != 1 [
+    error "Unit test 36b - inspection outcome not registered correctly."
+  ]
+  
+  ask traders [
+    if precision trust_in_via_traders 2 != 0.07 [
+      print trust_in_via_traders
+      error "Unit test 36b - trust in via traders did not decrease correctly upon inspection of illegal PPPs."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 36c - test if inspection of a trader with PPPs that are NOP products with 0% similarity to an original product happens correctly.
+  
+  ask traders [ set trust_in_via_traders 70]
+  ask PPPs [
+    set legal_in_EU? true
+    set original_product? false
+    set similarity_to_original_product 0
+  ]
+  
+  ask inspectors [
+    set assigned_to one-of traders
+    to_inspect
+  ]
+  
+  if company_observed_compliance != 1 and company_observed_malpractice != 2 [
+    error "Unit test 36c - inspection outcome not registered correctly."
+  ]
+  
+  ask traders [
+    if precision trust_in_via_traders 2 != 0.07 [
+      print trust_in_via_traders
+      error "Unit test 36c - trust in via traders did not decrease correctly upon inspection of NOP products."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 36d - test if inspection of a trader with PPPs that are NOP products with 100% similarity to an original product and no profiling happens correctly.
+  
+  ask traders [ set trust_in_via_traders 70]
+  ask PPPs [
+    set similarity_to_original_product 100
+  ]
+  
+  set %_profiling_used 0
+  
+  ask inspectors [
+    set assigned_to one-of traders
+    to_inspect
+  ]
+  
+  if company_observed_compliance != 2 and company_observed_malpractice != 2 [
+    error "Unit test 36d - inspection outcome not registered correctly."
+  ]
+  
+  ask traders [
+    if round trust_in_via_traders != 85 [
+      error "Unit test 36d - trust in via traders did not increase correctly upon inspection of NOP products with 100% similarity."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 36e - test if inspection of a trader with PPPs that are NOP products with 100% similarity to an original product and 100% profiling happens correctly.
+  
+  ask traders [ set trust_in_via_traders 70]
+  
+  set %_profiling_used 100
+  
+  ask inspectors [
+    set assigned_to one-of traders
+    to_inspect
+  ]
+  
+  if company_observed_compliance != 2 and company_observed_malpractice != 3 [
+    error "Unit test 36e - inspection outcome not registered correctly."
+  ]
+  
+  ask traders [
+    if precision trust_in_via_traders 2 != 0.07 [
+      error "Unit test 36e - trust in via traders did not increase correctly upon inspection of NOP products with 100% similarity."
+    ]
+  ]
+  
+  ;---
+  
+  ; Unit test 36f - test if the procedure happens correctly for an end-user as well.
+  
+  create-end_users 1 [
+    set trust_in_via_traders 70
+  ]
+  
+  create-orders 4 [
+    set PPP_in_order one-of PPPs
+    set selling_method "trader"
+  ]
+  
+  ask orders [
+    set owner one-of end_users
+    ask owner [set my_stock turtle-set myself]
+    set number_of_PPPs 0
+  ]
+  
+  set nr_of_PPPs_inspected_upon_visit_end_user 5 
+  
+  ask inspectors [
+    set assigned_to one-of end_users
+    ask end_users [print trust_in_via_traders]
+    to_inspect
+  ]
+  
+  if company_observed_compliance != 2 and company_observed_malpractice != 4 [
+    error "Unit test 36f - inspection outcome not registered correctly."
+  ]
+  
+  ask end_users [
+    if round trust_in_via_traders != 2  [
+      error "Unit test 36f - trust in via traders of end-user did not decrease correctly upon inspection."
+    ]
+  ]
+  
+  ;---
+  
+  ask turtles [die]
+  
+end
+
+To unit_test_37_inspect_random
+  
+  ; Unit test 37a - test if inspections are carried out correctly.
+  
+  create-end_users 10 [
+    set inspected_this_tick? false
+  ]
+  
+  create-inspectors 10 [
+    set assigned_to "none"
+  ]
+  
+  set inspect_end_users? true
+  set inspect_end_user_only_traders? false
+  set inspect_trader_to_trader_only_traders? false
+  
+  create_inspection_list
+  
+  create-PPPs 1 [
+    set original_product? false
+    set legal_in_EU? true
+    set similarity_to_original_product 0    
+  ]
+  
+  create-orders 1 [
+    set PPP_in_order one-of PPPs
+    set number_of_PPPs 100
+    set owner one-of end_users
+    ask owner [ set my_stock turtle-set myself]
+    set selling_method "trader"
+  ]
+  
+  create-inspectors 1 [
+    set assigned_to one-of traders
+  ]
+  
+  set nr_of_PPPs_inspected_upon_visit_end_user 10
+  set company_observed_malpractice 0
+  set company_observed_compliance 0
+  
+  ask inspectors [
+    inspect_random
+  ]
+  
+  ask end_users [
+    if inspected_this_tick? = false [
+      error "Unit test 37a - not all end-users were inspected whilst they should have been."
+    ]
+  ]
+  
+  if company_observed_compliance != 9 and company_observed_malpractice != 1 [
+    error "Unit test 37a - inspection outcome not registered correctly."
+  ]
+  
+  ;---
+  
+  ; Unit test 37b - test if no inspections are carried out when every agent is already being inspected.
+  
+  ask inspectors [
+    set assigned_to "none"
+    inspect_random
+  ]
+  
+  if company_observed_compliance != 9 and company_observed_malpractice != 1 [
+    error "Unit test 37b - inspections were carried out whilst they should not have been carried out."
+  ]
+  
+  ;---
+  
+  ask turtles [ die ]
+  
+end
