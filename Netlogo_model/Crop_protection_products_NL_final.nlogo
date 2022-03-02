@@ -121,7 +121,7 @@ end
 To go
 
   ; every year, perform the yearly trader actions
-  if ticks mod 12 = 1 and ticks > fixed_trust_period [ yearly_check_traders ]
+  yearly_check_traders
 
   ; end-users get disease on their crops and set a buying strategy
   ask end_users [
@@ -195,11 +195,13 @@ To yearly_check_traders
 
   ; perform the yearly updating
   ; profit is checked and requested items of clients are updated
-    ask traders [
+if ticks mod 12 = 1 and ticks > fixed_trust_period [     
+   ask traders [
       check_profit
       set profit_this_year 0
       update_request_data
     ]
+]
 
 end
 
